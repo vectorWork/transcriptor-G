@@ -1,0 +1,58 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: transcriptor-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-rootpass}
+      MONGO_INITDB_DATABASE: transcriptor_gacetas
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Publica el puerto solo si necesitas conectarte a Mongo desde el host:
+    # ports:
+    #   - "27017:27017"
+
+  server:
+    build: ./server
+    container_name: transcriptor-server
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      PORT: 4000
+      MONGO_URI: mongodb://${MONGO_ROOT_USER:-root}:${MONGO_ROOT_PASSWORD:-rootpass}@mongo:27017/transcriptor_gacetas?authSource=admin
+      JWT_SECRET: ${JWT_SECRET:-cambia-este-secreto-en-produccion}
+      JWT_EXPIRES_IN: 8h
+      CLIENT_ORIGIN: ${CLIENT_ORIGIN:-http://localhost:8080}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin1234*}
+      ADMIN_NOMBRE: ${ADMIN_NOMBRE:-Administrador}
+      IMPORT_DIR: /import
+      NODE_ENV: production
+    volumes:
+      # Repositorio de PDFs a ingestar con `npm run import`.
+      # Coloca aquí los PDFs (o cambia ./import por la ruta de tu repositorio).
+      - ${IMPORT_DIR_HOST:-./import}:/import:ro
+    # Publica el puerto solo para depurar la API directamente:
+    # ports:
+    #   - "4000:4000"
+
+  client:
+    build: ./client
+    container_name: transcriptor-client
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "${CLIENT_PORT:-8080}:80"
+
+volumes:
+  mongo_data:
