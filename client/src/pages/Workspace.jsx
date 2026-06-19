@@ -63,21 +63,29 @@ export default function Workspace() {
     [registros]
   );
 
-  // Marca una página como vista en el servidor (control de lectura completa).
-  const onPageChange = useCallback(
-    async (p) => {
-      setPagina(p);
-      if (!gaceta || paginasVistas.has(p)) return;
-      try {
-        const res = await gacetasApi.marcarVisto(gaceta._id, p);
+  // La navegación solo cambia la página; el marcado lo hace el efecto de abajo.
+  const onPageChange = useCallback((p) => setPagina(p), []);
+
+  // Marca automáticamente la página actual como vista (incluida la inicial al
+  // cargar la gaceta). Antes solo se marcaba al navegar, por lo que la primera
+  // página nunca se contaba y "Finalizar" no llegaba a habilitarse (p.ej. 23/24).
+  useEffect(() => {
+    if (!gaceta || !pagina || paginasVistas.has(pagina)) return;
+    let cancelado = false;
+    gacetasApi
+      .marcarVisto(gaceta._id, pagina)
+      .then((res) => {
+        if (cancelado) return;
         setPaginasVistas(new Set(res.data.paginasVistas));
         setTodasVistas(res.data.todasVistas);
-      } catch {
+      })
+      .catch(() => {
         /* no bloquear la navegación si falla el marcado */
-      }
-    },
-    [gaceta, paginasVistas]
-  );
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [gaceta, pagina, paginasVistas]);
 
   const guardarRegistro = async (data) => {
     const res = await registrosApi.crear({ ...data, gacetaId: gaceta._id });

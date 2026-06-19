@@ -25,7 +25,7 @@ const registroSchema = new mongoose.Schema(
     nombres: { type: String, required: true, trim: true },
     apellidos: { type: String, required: true, trim: true },
     idTipo: { type: String, enum: TIPOS_ID, required: true },
-    idNumero: { type: String, required: true, trim: true },
+    idNumero: { type: String, required: true, trim: true, index: true },
     accion: { type: String, enum: ACCIONES, required: true },
     pagina: { type: Number, required: true, min: 1 },
     contexto: { type: String, default: '' },

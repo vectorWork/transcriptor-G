@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { ACCIONES, validarIdentificacion } from '../utils/constants.js';
+import { registrosApi } from '../api/client.js';
 
 const VACIO = {
   nombres: '',
@@ -65,6 +66,33 @@ export default function RegistroForm({
   }, [contextoEntrante, getValues, setValue]);
 
   const idTipo = watch('idTipo');
+  const idNumero = watch('idNumero');
+
+  // Autocompleta nombres/apellidos cuando la identificación coincide en su
+  // totalidad con una persona ya registrada (en cualquier gaceta). No toca
+  // página, acción ni contexto: esos son propios de cada registro.
+  const ultimaBuscada = useRef('');
+  useEffect(() => {
+    if (editando) return; // en edición no autocompletamos
+    const valor = (idNumero || '').trim();
+    if (validarIdentificacion(idTipo, valor)) return; // aún no es un ID válido
+    if (valor === ultimaBuscada.current) return; // ya buscado
+    const t = setTimeout(async () => {
+      try {
+        const { data } = await registrosApi.buscarPorId(valor);
+        ultimaBuscada.current = valor;
+        const r = data.registro;
+        if (!r) return;
+        setValue('nombres', r.nombres, { shouldDirty: true });
+        setValue('apellidos', r.apellidos, { shouldDirty: true });
+        if (r.idTipo) setValue('idTipo', r.idTipo);
+        toast.success(`Datos autocompletados: ${r.nombres} ${r.apellidos}`);
+      } catch {
+        /* silencioso: el autocompletado es una ayuda, no debe molestar */
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [idNumero, idTipo, editando, setValue]);
 
   const submit = async (data) => {
     const errId = validarIdentificacion(data.idTipo, data.idNumero);

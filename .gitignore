@@ -8,3 +8,5 @@ npm-debug.log*
 coverage/
 .DS_Store
 .vscode/
+# Added by code-review-graph
+.code-review-graph/

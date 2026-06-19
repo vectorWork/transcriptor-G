@@ -41,6 +41,8 @@ export const statsApi = {
 
 export const registrosApi = {
   listar: (gacetaId) => api.get('/registros', { params: { gacetaId } }),
+  // Busca una persona existente por identificación (cualquier gaceta) para autocompletar.
+  buscarPorId: (idNumero) => api.get('/registros/buscar', { params: { idNumero } }),
   crear: (data) => api.post('/registros', data),
   editar: (id, data) => api.patch(`/registros/${id}`, data),
   eliminar: (id) => api.delete(`/registros/${id}`),

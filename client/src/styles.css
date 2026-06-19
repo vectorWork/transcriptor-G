@@ -216,9 +216,15 @@ textarea {
 .pdf-scroll {
   flex: 1;
   overflow: auto;
-  display: flex;
-  justify-content: center;
   padding: 1rem;
+}
+/* El documento se centra cuando cabe, pero al hacer zoom (más ancho que el
+   panel) puede desplazarse horizontalmente para ver toda la página. Antes se
+   usaba flex + justify-content:center, que recortaba el lado izquierdo y no
+   dejaba hacer scroll hasta él. */
+.pdf-scroll .react-pdf__Document {
+  width: fit-content;
+  margin: 0 auto;
 }
 .grupo-buscar {
   flex: 1;

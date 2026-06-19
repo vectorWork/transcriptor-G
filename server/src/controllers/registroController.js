@@ -35,6 +35,23 @@ export async function listarRegistros(req, res, next) {
   }
 }
 
+// Busca la última persona registrada cuya identificación coincida exactamente,
+// para autocompletar el formulario (nombres/apellidos). Solo devuelve datos de
+// identidad: nunca página, acción ni contexto, que son propios de cada registro.
+export async function buscarPorIdentificacion(req, res, next) {
+  try {
+    const idNumero = String(req.query.idNumero || '').trim();
+    if (!idNumero) return res.json({ registro: null });
+    const registro = await Registro.findOne({ idNumero })
+      .sort({ createdAt: -1 })
+      .select('nombres apellidos idTipo idNumero')
+      .lean();
+    res.json({ registro: registro || null });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function crearRegistro(req, res, next) {
   try {
     const data = registroSchema.parse(req.body);

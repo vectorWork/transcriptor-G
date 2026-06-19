@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "code-review-graph": {
+      "command": "C:\\Users\\BrenierComputer123\\AppData\\Local\\Programs\\Python\\python313\\python.exe",
+      "args": [
+        "-m",
+        "code_review_graph",
+        "serve"
+      ],
+      "cwd": "C:\\Users\\BrenierComputer123\\Documents\\Trabajo\\Analytiko\\transcriptor_gacetas",
+      "type": "stdio",
+      "env": []
+    }
+  }
+}
