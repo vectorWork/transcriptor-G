@@ -757,4 +757,43 @@ textarea {
   display: flex;
   justify-content: flex-end;
   gap: 0.6rem;
+  align-items: center;
+}
+
+/* Modal ancho con lista de registros (vista admin desde la tabla de gacetas) */
+.modal-ancho {
+  width: min(760px, 94vw);
+  display: flex;
+  flex-direction: column;
+  max-height: 88vh;
+}
+.modal-lista-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.modal-lista-head .modal-titulo {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.modal-lista-body {
+  flex: 1;
+  overflow: auto;
+  margin: 0.75rem 0 1rem;
+  min-height: 80px;
+}
+
+/* Selector de prefijo + número de identificación */
+.id-grupo {
+  display: flex;
+  gap: 0.4rem;
+}
+.id-grupo .id-prefijo {
+  flex: 0 0 auto;
+  width: 64px;
+}
+.id-grupo .id-numero {
+  flex: 1;
+  min-width: 0;
 }

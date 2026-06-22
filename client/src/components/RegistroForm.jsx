@@ -1,18 +1,28 @@
 import { useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { ACCIONES, validarIdentificacion } from '../utils/constants.js';
+import { ACCIONES, PREFIJOS_ID, validarIdentificacion } from '../utils/constants.js';
 import { registrosApi } from '../api/client.js';
 
 const VACIO = {
+  idPrefijo: 'V',
+  idNumero: '',
   nombres: '',
   apellidos: '',
-  idTipo: 'cedula',
-  idNumero: '',
   accion: '',
   pagina: 1,
   contexto: '',
 };
+
+// Separa el prefijo y el número de un registro existente. Tolera datos viejos
+// donde el prefijo venía embebido en idNumero ("V12345678") y aún no se migró.
+function descomponerId(registro) {
+  if (registro.idPrefijo) return { idPrefijo: registro.idPrefijo, idNumero: registro.idNumero || '' };
+  const raw = (registro.idNumero || '').trim();
+  const m = raw.match(new RegExp(`^(${PREFIJOS_ID.join('|')})-?(\\d{5,})$`, 'i'));
+  if (m) return { idPrefijo: m[1].toUpperCase(), idNumero: m[2] };
+  return { idPrefijo: 'V', idNumero: raw };
+}
 
 export default function RegistroForm({
   paginaActual,
@@ -37,11 +47,12 @@ export default function RegistroForm({
   // Carga el registro a editar (o limpia al salir del modo edición).
   useEffect(() => {
     if (registroEnEdicion) {
+      const { idPrefijo, idNumero } = descomponerId(registroEnEdicion);
       reset({
+        idPrefijo,
+        idNumero,
         nombres: registroEnEdicion.nombres,
         apellidos: registroEnEdicion.apellidos,
-        idTipo: registroEnEdicion.idTipo,
-        idNumero: registroEnEdicion.idNumero,
         accion: registroEnEdicion.accion,
         pagina: registroEnEdicion.pagina,
         contexto: registroEnEdicion.contexto || '',
@@ -65,37 +76,37 @@ export default function RegistroForm({
     setValue('contexto', nuevo, { shouldDirty: true });
   }, [contextoEntrante, getValues, setValue]);
 
-  const idTipo = watch('idTipo');
+  const idPrefijo = watch('idPrefijo');
   const idNumero = watch('idNumero');
 
-  // Autocompleta nombres/apellidos cuando la identificación coincide en su
-  // totalidad con una persona ya registrada (en cualquier gaceta). No toca
-  // página, acción ni contexto: esos son propios de cada registro.
+  // Autocompleta nombres/apellidos cuando la identificación (prefijo + número)
+  // coincide en su totalidad con una persona ya registrada en cualquier gaceta.
+  // No toca página, acción ni contexto: esos son propios de cada registro.
   const ultimaBuscada = useRef('');
   useEffect(() => {
     if (editando) return; // en edición no autocompletamos
     const valor = (idNumero || '').trim();
-    if (validarIdentificacion(idTipo, valor)) return; // aún no es un ID válido
-    if (valor === ultimaBuscada.current) return; // ya buscado
+    if (validarIdentificacion(idPrefijo, valor)) return; // aún no es un ID válido
+    const clave = `${idPrefijo}-${valor}`;
+    if (clave === ultimaBuscada.current) return; // ya buscado
     const t = setTimeout(async () => {
       try {
-        const { data } = await registrosApi.buscarPorId(valor);
-        ultimaBuscada.current = valor;
+        const { data } = await registrosApi.buscarPorId(idPrefijo, valor);
+        ultimaBuscada.current = clave;
         const r = data.registro;
         if (!r) return;
         setValue('nombres', r.nombres, { shouldDirty: true });
         setValue('apellidos', r.apellidos, { shouldDirty: true });
-        if (r.idTipo) setValue('idTipo', r.idTipo);
         toast.success(`Datos autocompletados: ${r.nombres} ${r.apellidos}`);
       } catch {
         /* silencioso: el autocompletado es una ayuda, no debe molestar */
       }
     }, 400);
     return () => clearTimeout(t);
-  }, [idNumero, idTipo, editando, setValue]);
+  }, [idPrefijo, idNumero, editando, setValue]);
 
   const submit = async (data) => {
-    const errId = validarIdentificacion(data.idTipo, data.idNumero);
+    const errId = validarIdentificacion(data.idPrefijo, data.idNumero);
     if (errId) {
       toast.error(errId);
       return;
@@ -107,7 +118,7 @@ export default function RegistroForm({
       } else {
         await onGuardar(data);
         toast.success('Registro guardado');
-        reset({ ...VACIO, idTipo: data.idTipo, pagina: data.pagina });
+        reset({ ...VACIO, idPrefijo: data.idPrefijo, pagina: data.pagina });
       }
     } catch (err) {
       toast.error(err.response?.data?.error || 'No se pudo guardar');
@@ -131,6 +142,29 @@ export default function RegistroForm({
 
       <div className="campo-fila">
         <label className="campo">
+          Cédula / Identificación
+          <div className="id-grupo">
+            <select className="id-prefijo" {...register('idPrefijo')}>
+              {PREFIJOS_ID.map((p) => (
+                <option key={p} value={p}>
+                  {p}-
+                </option>
+              ))}
+            </select>
+            <input
+              className="id-numero"
+              {...register('idNumero', { required: 'Requerido' })}
+              placeholder={idPrefijo === 'P' ? 'AB123456' : '12345678'}
+              inputMode={idPrefijo === 'P' ? 'text' : 'numeric'}
+              autoComplete="off"
+            />
+          </div>
+          {errors.idNumero && <span className="err">{errors.idNumero.message}</span>}
+        </label>
+      </div>
+
+      <div className="campo-fila">
+        <label className="campo">
           Nombres
           <input list="lista-nombres" {...register('nombres', { required: 'Requerido' })} />
           {errors.nombres && <span className="err">{errors.nombres.message}</span>}
@@ -146,24 +180,6 @@ export default function RegistroForm({
           <option key={n} value={n} />
         ))}
       </datalist>
-
-      <div className="campo-fila">
-        <label className="campo campo-corto">
-          Tipo de ID
-          <select {...register('idTipo')}>
-            <option value="cedula">Cédula</option>
-            <option value="pasaporte">Pasaporte</option>
-          </select>
-        </label>
-        <label className="campo">
-          {idTipo === 'cedula' ? 'Cédula' : 'Pasaporte'}
-          <input
-            {...register('idNumero', { required: 'Requerido' })}
-            placeholder={idTipo === 'cedula' ? 'V12345678' : 'AB123456'}
-          />
-          {errors.idNumero && <span className="err">{errors.idNumero.message}</span>}
-        </label>
-      </div>
 
       <div className="campo-fila">
         <label className="campo">

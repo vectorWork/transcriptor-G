@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { gacetasApi, usersApi } from '../api/client.js';
 import ReasignarModal from '../components/ReasignarModal.jsx';
 import ConfirmModal from '../components/ConfirmModal.jsx';
+import RegistrosGacetaModal from '../components/RegistrosGacetaModal.jsx';
 
 const ESTADOS = [
   { value: '', label: 'Todas' },
@@ -24,6 +25,7 @@ export default function AdminGacetas() {
   const [transcriptores, setTranscriptores] = useState([]);
   const [reasignar, setReasignar] = useState(null);
   const [eliminar, setEliminar] = useState(null);
+  const [verRegistros, setVerRegistros] = useState(null);
 
   const cargar = useCallback(() => {
     const params = estado ? { estado } : {};
@@ -109,7 +111,19 @@ export default function AdminGacetas() {
               <td>
                 {(g.paginasVistas?.length || 0)}/{g.totalPaginas || 0}
               </td>
-              <td>{g.totalRegistros || 0}</td>
+              <td>
+                {g.totalRegistros > 0 ? (
+                  <button
+                    className="btn-link"
+                    onClick={() => setVerRegistros(g)}
+                    title="Ver personas registradas"
+                  >
+                    👥 {g.totalRegistros}
+                  </button>
+                ) : (
+                  0
+                )}
+              </td>
               <td>
                 <div className="cel-acciones">
                   <Link className="btn btn-sm" to={`/admin/gacetas/${g._id}`}>
@@ -142,6 +156,8 @@ export default function AdminGacetas() {
         onConfirmar={confirmarReasignar}
         onCancelar={() => setReasignar(null)}
       />
+
+      <RegistrosGacetaModal gaceta={verRegistros} onCerrar={() => setVerRegistros(null)} />
 
       <ConfirmModal
         abierto={Boolean(eliminar)}

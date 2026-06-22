@@ -1,15 +1,15 @@
 import { z } from 'zod';
 import ExcelJS from 'exceljs';
-import { Registro, ACCIONES, TIPOS_ID } from '../models/Registro.js';
+import { Registro, ACCIONES, PREFIJOS_ID } from '../models/Registro.js';
 import { Gaceta } from '../models/Gaceta.js';
-import { validarIdentificacion } from '../utils/validators.js';
+import { validarIdentificacion, idTipoDesdePrefijo } from '../utils/validators.js';
 import { registrarBitacora } from '../utils/logger.js';
 
 const registroSchema = z.object({
   gacetaId: z.string().min(1, 'gacetaId requerido'),
   nombres: z.string().min(1, 'Nombres requeridos'),
   apellidos: z.string().min(1, 'Apellidos requeridos'),
-  idTipo: z.enum(TIPOS_ID),
+  idPrefijo: z.enum(PREFIJOS_ID),
   idNumero: z.string().min(1, 'Identificación requerida'),
   accion: z.enum(ACCIONES),
   pagina: z.coerce.number().int().min(1, 'Página inválida'),
@@ -35,16 +35,18 @@ export async function listarRegistros(req, res, next) {
   }
 }
 
-// Busca la última persona registrada cuya identificación coincida exactamente,
-// para autocompletar el formulario (nombres/apellidos). Solo devuelve datos de
-// identidad: nunca página, acción ni contexto, que son propios de cada registro.
+// Busca la última persona registrada cuya identificación coincida exactamente
+// (prefijo de nomenclatura + número), para autocompletar el formulario. Solo
+// devuelve datos de identidad: nunca página, acción ni contexto, que son
+// propios de cada registro.
 export async function buscarPorIdentificacion(req, res, next) {
   try {
     const idNumero = String(req.query.idNumero || '').trim();
-    if (!idNumero) return res.json({ registro: null });
-    const registro = await Registro.findOne({ idNumero })
+    const idPrefijo = String(req.query.idPrefijo || '').trim().toUpperCase();
+    if (!idNumero || !PREFIJOS_ID.includes(idPrefijo)) return res.json({ registro: null });
+    const registro = await Registro.findOne({ idPrefijo, idNumero })
       .sort({ createdAt: -1 })
-      .select('nombres apellidos idTipo idNumero')
+      .select('nombres apellidos idPrefijo idTipo idNumero')
       .lean();
     res.json({ registro: registro || null });
   } catch (err) {
@@ -55,7 +57,7 @@ export async function buscarPorIdentificacion(req, res, next) {
 export async function crearRegistro(req, res, next) {
   try {
     const data = registroSchema.parse(req.body);
-    const idCheck = validarIdentificacion(data.idTipo, data.idNumero);
+    const idCheck = validarIdentificacion(data.idPrefijo, data.idNumero);
     if (!idCheck.ok) return res.status(400).json({ error: idCheck.mensaje });
 
     const gaceta = await Gaceta.findById(data.gacetaId);
@@ -64,7 +66,8 @@ export async function crearRegistro(req, res, next) {
       return res.status(403).json({ error: 'No puedes agregar registros a esta gaceta' });
     }
 
-    const registro = await Registro.create({ ...data, createdBy: req.user._id });
+    const idTipo = idTipoDesdePrefijo(data.idPrefijo);
+    const registro = await Registro.create({ ...data, idTipo, createdBy: req.user._id });
     await registrarBitacora({
       req,
       user: req.user,
@@ -82,10 +85,12 @@ export async function crearRegistro(req, res, next) {
 export async function editarRegistro(req, res, next) {
   try {
     const data = editarSchema.parse(req.body);
-    if (data.idTipo && data.idNumero) {
-      const idCheck = validarIdentificacion(data.idTipo, data.idNumero);
+    if (data.idPrefijo && data.idNumero) {
+      const idCheck = validarIdentificacion(data.idPrefijo, data.idNumero);
       if (!idCheck.ok) return res.status(400).json({ error: idCheck.mensaje });
     }
+    // Mantiene idTipo coherente con el prefijo cuando este cambia.
+    if (data.idPrefijo) data.idTipo = idTipoDesdePrefijo(data.idPrefijo);
     const existente = await Registro.findById(req.params.id);
     if (!existente) return res.status(404).json({ error: 'Registro no encontrado' });
     const gaceta = await Gaceta.findById(existente.gacetaId);
@@ -162,7 +167,7 @@ export async function exportarGaceta(req, res, next) {
         nombres: r.nombres,
         apellidos: r.apellidos,
         idTipo: r.idTipo,
-        idNumero: r.idNumero,
+        idNumero: r.idPrefijo ? `${r.idPrefijo}-${r.idNumero}` : r.idNumero,
         accion: r.accion,
         pagina: r.pagina,
         contexto: r.contexto,

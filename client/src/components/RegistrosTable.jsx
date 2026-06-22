@@ -6,6 +6,7 @@ import {
   getSortedRowModel,
   flexRender,
 } from '@tanstack/react-table';
+import { formatearId } from '../utils/constants.js';
 
 export default function RegistrosTable({ registros, registroEnEdicionId, onEditar, onEliminar }) {
   const [filtro, setFiltro] = useState('');
@@ -23,7 +24,7 @@ export default function RegistrosTable({ registros, registroEnEdicionId, onEdita
               {c.row.original.nombres} {c.row.original.apellidos}
             </strong>
             <small className="muted">
-              {c.row.original.idTipo === 'cedula' ? 'C.I.' : 'Pasaporte'} {c.row.original.idNumero}
+              {formatearId(c.row.original.idPrefijo, c.row.original.idNumero)}
             </small>
           </div>
         ),

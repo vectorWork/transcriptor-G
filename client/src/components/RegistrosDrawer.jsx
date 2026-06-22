@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { formatearId } from '../utils/constants.js';
 
 function RegistroItem({ registro, onEditar, onEliminar, onIrPagina }) {
   const [expandido, setExpandido] = useState(false);
@@ -13,7 +14,7 @@ function RegistroItem({ registro, onEditar, onEliminar, onIrPagina }) {
             {registro.nombres} {registro.apellidos}
           </strong>
           <small className="muted">
-            {registro.idTipo === 'cedula' ? 'C.I.' : 'Pasaporte'} {registro.idNumero}
+            {formatearId(registro.idPrefijo, registro.idNumero)}
           </small>
         </div>
         <div className="cel-acciones">
