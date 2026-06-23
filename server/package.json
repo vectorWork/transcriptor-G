@@ -9,7 +9,9 @@
     "start": "node src/server.js",
     "seed": "node src/utils/seedAdmin.js",
     "import": "node src/scripts/importGacetas.js",
-    "migrar:ids": "node src/scripts/migrarIdentificaciones.js"
+    "migrar:ids": "node src/scripts/migrarIdentificaciones.js",
+    "extraer:dbf": "node src/scripts/extraerDbf.js",
+    "importar:datapersons": "node src/scripts/importarDataPersons.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

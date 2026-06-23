@@ -27,7 +27,6 @@ function descomponerId(registro) {
 export default function RegistroForm({
   paginaActual,
   contextoEntrante,
-  nombresSugeridos = [],
   registroEnEdicion = null,
   onGuardar,
   onActualizar,
@@ -166,7 +165,7 @@ export default function RegistroForm({
       <div className="campo-fila">
         <label className="campo">
           Nombres
-          <input list="lista-nombres" {...register('nombres', { required: 'Requerido' })} />
+          <input {...register('nombres', { required: 'Requerido' })} />
           {errors.nombres && <span className="err">{errors.nombres.message}</span>}
         </label>
         <label className="campo">
@@ -175,11 +174,6 @@ export default function RegistroForm({
           {errors.apellidos && <span className="err">{errors.apellidos.message}</span>}
         </label>
       </div>
-      <datalist id="lista-nombres">
-        {nombresSugeridos.map((n) => (
-          <option key={n} value={n} />
-        ))}
-      </datalist>
 
       <div className="campo-fila">
         <label className="campo">

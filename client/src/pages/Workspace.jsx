@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import toast from 'react-hot-toast';
 import { gacetasApi, registrosApi } from '../api/client.js';
@@ -57,11 +57,6 @@ export default function Workspace() {
       .catch(() => toast.error('No se pudo cargar tu gaceta'))
       .finally(() => setCargando(false));
   }, [cargarActual]);
-
-  const nombresSugeridos = useMemo(
-    () => [...new Set(registros.map((r) => r.nombres).filter(Boolean))],
-    [registros]
-  );
 
   // La navegación solo cambia la página; el marcado lo hace el efecto de abajo.
   const onPageChange = useCallback((p) => setPagina(p), []);
@@ -208,7 +203,6 @@ export default function Workspace() {
         <RegistroForm
           paginaActual={pagina}
           contextoEntrante={contextoEntrante}
-          nombresSugeridos={nombresSugeridos}
           registroEnEdicion={registroEnEdicion}
           onGuardar={guardarRegistro}
           onActualizar={actualizarRegistro}

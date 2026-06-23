@@ -2,8 +2,24 @@ import { z } from 'zod';
 import ExcelJS from 'exceljs';
 import { Registro, ACCIONES, PREFIJOS_ID } from '../models/Registro.js';
 import { Gaceta } from '../models/Gaceta.js';
+import { DataPerson } from '../models/DataPerson.js';
 import { validarIdentificacion, idTipoDesdePrefijo } from '../utils/validators.js';
 import { registrarBitacora } from '../utils/logger.js';
+
+// Inserta a la persona en datapersons solo si su identidad (nacionalidad +
+// cédula) aún no existe. Si ya existe, no la toca. Nunca interrumpe el flujo
+// principal: los errores se registran pero no se propagan.
+async function registrarEnDataPersons({ idPrefijo, idNumero, nombres, apellidos }) {
+  try {
+    await DataPerson.updateOne(
+      { nacionalidad: idPrefijo, cedula: idNumero },
+      { $setOnInsert: { nacionalidad: idPrefijo, cedula: idNumero, nombres, apellidos } },
+      { upsert: true }
+    );
+  } catch (err) {
+    console.error('[datapersons] No se pudo sincronizar la persona:', err.message);
+  }
+}
 
 const registroSchema = z.object({
   gacetaId: z.string().min(1, 'gacetaId requerido'),
@@ -35,20 +51,26 @@ export async function listarRegistros(req, res, next) {
   }
 }
 
-// Busca la última persona registrada cuya identificación coincida exactamente
-// (prefijo de nomenclatura + número), para autocompletar el formulario. Solo
-// devuelve datos de identidad: nunca página, acción ni contexto, que son
-// propios de cada registro.
+// Autocompletado: busca en la colección datapersons (Registro Electoral +
+// personas ya registradas) por identidad exacta (nacionalidad/prefijo + cédula)
+// y devuelve solo nombres/apellidos. Nunca página, acción ni contexto.
 export async function buscarPorIdentificacion(req, res, next) {
   try {
     const idNumero = String(req.query.idNumero || '').trim();
     const idPrefijo = String(req.query.idPrefijo || '').trim().toUpperCase();
     if (!idNumero || !PREFIJOS_ID.includes(idPrefijo)) return res.json({ registro: null });
-    const registro = await Registro.findOne({ idPrefijo, idNumero })
-      .sort({ createdAt: -1 })
-      .select('nombres apellidos idPrefijo idTipo idNumero')
+    const persona = await DataPerson.findOne({ nacionalidad: idPrefijo, cedula: idNumero })
+      .select('nombres apellidos nacionalidad cedula')
       .lean();
-    res.json({ registro: registro || null });
+    const registro = persona
+      ? {
+          nombres: persona.nombres,
+          apellidos: persona.apellidos,
+          idPrefijo: persona.nacionalidad,
+          idNumero: persona.cedula,
+        }
+      : null;
+    res.json({ registro });
   } catch (err) {
     next(err);
   }
@@ -68,6 +90,15 @@ export async function crearRegistro(req, res, next) {
 
     const idTipo = idTipoDesdePrefijo(data.idPrefijo);
     const registro = await Registro.create({ ...data, idTipo, createdBy: req.user._id });
+
+    // Alimenta el catálogo de autocompletado si esta persona aún no estaba.
+    await registrarEnDataPersons({
+      idPrefijo: data.idPrefijo,
+      idNumero: data.idNumero,
+      nombres: data.nombres,
+      apellidos: data.apellidos,
+    });
+
     await registrarBitacora({
       req,
       user: req.user,

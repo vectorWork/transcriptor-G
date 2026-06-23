@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import toast from 'react-hot-toast';
@@ -34,11 +34,6 @@ export default function AdminGacetaDetail() {
       .then((r) => setTranscriptores(r.data.users.filter((u) => u.role === 'transcriptor' && u.activo)))
       .catch(() => {});
   }, [id]);
-
-  const nombresSugeridos = useMemo(
-    () => [...new Set(registros.map((r) => r.nombres).filter(Boolean))],
-    [registros]
-  );
 
   const guardarRegistro = async (data) => {
     const res = await registrosApi.crear({ ...data, gacetaId: id });
@@ -142,7 +137,6 @@ export default function AdminGacetaDetail() {
         <RegistroForm
           paginaActual={pagina}
           contextoEntrante={contextoEntrante}
-          nombresSugeridos={nombresSugeridos}
           registroEnEdicion={registroEnEdicion}
           onGuardar={guardarRegistro}
           onActualizar={actualizarRegistro}
